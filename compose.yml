@@ -1,0 +1,28 @@
+services:
+  db:
+    image: docker.io/postgis/postgis:16-3.4
+    environment:
+      POSTGRES_DB: civic_platform
+      POSTGRES_USER: civic_user
+      POSTGRES_PASSWORD: devpassword
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    volumes:
+      - .:/workspace:Z
+    env_file:
+      - .env
+    ports:
+      - "8000:8000"
+    command: sleep infinity
+    depends_on:
+      - db
+
+volumes:
+  pgdata:
