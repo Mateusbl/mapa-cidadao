@@ -3,4 +3,5 @@ Django>=5.0,<5.1
 psycopg2-binary>=2.9
 python-dotenv>=1.0
 django-simple-history>=3.5
- 
+pytest>=8.0
+pytest-django>=4.8

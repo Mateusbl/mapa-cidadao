@@ -29,12 +29,12 @@ services:
     build:
       context: ./verifier
       dockerfile: Dockerfile
+    env_file:
+      - ./verifier/.env
     volumes:
       - verifier_data:/data
     ports:
       - "9000:9000"
-    # em produção real: hospedar isso em OUTRA máquina inteiramente,
-    # não só outro container no mesmo host
 
 volumes:
   pgdata:
