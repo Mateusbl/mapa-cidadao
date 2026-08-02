@@ -2,6 +2,7 @@ from django.db import models
 from django.contrib.gis.db import models as gis_models
 from simple_history.models import HistoricalRecords
 from django.contrib.auth.models import User
+import hashlib
 # Create your models here.
 class Municipio(models.Model):
     name = models.CharField(max_length=100)
@@ -51,8 +52,27 @@ class Vote(models.Model):
     is_active = models.BooleanField(default=True)
     revoked_at = models.DateTimeField(null=True, blank=True)
     revoked_reason = models.CharField(max_length=200, blank=True)
+    
+    previous_hash = models.CharField(max_length=64, blank=True, default='')
+    record_hash = models.CharField(max_length=64, editable=False, default='')
 
     history = HistoricalRecords()
+    
+
+    
+    def compute_hash(self):
+        payload = f"{self.issue_id}|{self.user_id}|{self.created_at}|{self.previous_hash}"
+        return hashlib.sha256(payload.encode()).hexdigest()
+    
+    def save(self, *args, **kwargs):
+        is_new = self.pk is None
+        if is_new:
+            last_vote = Vote.objects.order_by('-id').first()
+            self.previous_hash = last_vote.record_hash if last_vote else ''
+        super().save(*args, **kwargs)
+        if is_new:
+            self.record_hash = self.compute_hash()
+            super().save(update_fields=['record_hash'])
 
     class Meta:
         unique_together = ('issue', 'user')

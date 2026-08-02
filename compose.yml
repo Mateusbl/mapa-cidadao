@@ -23,6 +23,19 @@ services:
     command: sleep infinity
     depends_on:
       - db
+      - verifier
+
+  verifier:
+    build:
+      context: ./verifier
+      dockerfile: Dockerfile
+    volumes:
+      - verifier_data:/data
+    ports:
+      - "9000:9000"
+    # em produção real: hospedar isso em OUTRA máquina inteiramente,
+    # não só outro container no mesmo host
 
 volumes:
   pgdata:
+  verifier_data:
