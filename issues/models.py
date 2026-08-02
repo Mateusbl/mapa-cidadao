@@ -3,6 +3,7 @@ from django.contrib.gis.db import models as gis_models
 from simple_history.models import HistoricalRecords
 from django.contrib.auth.models import User
 import hashlib
+from django.utils import timezone
 # Create your models here.
 class Municipio(models.Model):
     name = models.CharField(max_length=100)
@@ -24,15 +25,31 @@ class Issue(models.Model):
     description = models.TextField()
     location = gis_models.PointField()
     municipio = models.ForeignKey(Municipio, on_delete=models.PROTECT)
-    created_by = models.ForeignKey(User, on_delete=models.CASCADE)
-    created_at = models.DateTimeField(auto_now_add=True)
+    created_by = models.ForeignKey(User, on_delete=models.PROTECT)
+    created_at = models.DateTimeField(default=timezone.now)
     is_deleted = models.BooleanField(default=False)
     deleted_at = models.DateTimeField(null=True, blank=True)
 
+    previous_hash = models.CharField(max_length=64, blank=True, default='')
+    record_hash = models.CharField(max_length=64, editable=False, default='')
+
     history = HistoricalRecords()
 
-    objects = IssueManager()          # uso normal: Issue.objects.all() já exclui deletados
-    all_objects = models.Manager()    # acesso explícito a tudo, incluindo deletados
+    objects = IssueManager()
+    all_objects = models.Manager()
+
+    def compute_hash(self):
+        payload = f"{self.title}|{self.description}|{self.municipio_id}|{self.created_by_id}|{self.created_at}|{self.previous_hash}"
+        return hashlib.sha256(payload.encode()).hexdigest()
+
+    def save(self, *args, **kwargs):
+        if self.pk is None:
+            if not self.created_at:
+                self.created_at = timezone.now()
+            last_issue = Issue.all_objects.order_by('-id').first()
+            self.previous_hash = last_issue.record_hash if last_issue else ''
+            self.record_hash = self.compute_hash()
+        super().save(*args, **kwargs)
 
     def soft_delete(self):
         self.is_deleted = True
