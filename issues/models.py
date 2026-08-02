@@ -45,34 +45,33 @@ class Issue(models.Model):
     
     
     
+from django.utils import timezone
+
 class Vote(models.Model):
     issue = models.ForeignKey(Issue, on_delete=models.PROTECT)
     user = models.ForeignKey(User, on_delete=models.PROTECT)
-    created_at = models.DateTimeField(auto_now_add=True)
+    created_at = models.DateTimeField(default=timezone.now)  # trocou auto_now_add por default
     is_active = models.BooleanField(default=True)
     revoked_at = models.DateTimeField(null=True, blank=True)
     revoked_reason = models.CharField(max_length=200, blank=True)
-    
+
     previous_hash = models.CharField(max_length=64, blank=True, default='')
     record_hash = models.CharField(max_length=64, editable=False, default='')
 
     history = HistoricalRecords()
-    
-
-    
-    def compute_hash(self):
-        payload = f"{self.issue_id}|{self.user_id}|{self.created_at}|{self.previous_hash}"
-        return hashlib.sha256(payload.encode()).hexdigest()
-    
-    def save(self, *args, **kwargs):
-        is_new = self.pk is None
-        if is_new:
-            last_vote = Vote.objects.order_by('-id').first()
-            self.previous_hash = last_vote.record_hash if last_vote else ''
-        super().save(*args, **kwargs)
-        if is_new:
-            self.record_hash = self.compute_hash()
-            super().save(update_fields=['record_hash'])
 
     class Meta:
         unique_together = ('issue', 'user')
+
+    def compute_hash(self):
+        payload = f"{self.issue_id}|{self.user_id}|{self.created_at}|{self.previous_hash}"
+        return hashlib.sha256(payload.encode()).hexdigest()
+
+    def save(self, *args, **kwargs):
+        if self.pk is None:  # só na criação
+            if not self.created_at:
+                self.created_at = timezone.now()
+            last_vote = Vote.objects.order_by('-id').first()
+            self.previous_hash = last_vote.record_hash if last_vote else ''
+            self.record_hash = self.compute_hash()
+        super().save(*args, **kwargs)  # um único INSERT, tudo já calculado
