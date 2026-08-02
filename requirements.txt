@@ -5,3 +5,4 @@ python-dotenv>=1.0
 django-simple-history>=3.5
 pytest>=8.0
 pytest-django>=4.8
+requests>=2.31
