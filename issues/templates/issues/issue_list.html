@@ -1,0 +1,29 @@
+{% extends 'issues/base.html' %}
+
+{% block title %}Issues{% endblock %}
+
+{% block content %}
+<h1>Problemas reportados</h1>
+
+<form method="get">
+    <select name="municipio" onchange="this.form.submit()">
+        <option value="">Todos os municípios</option>
+        {% for m in municipios %}
+            <option value="{{ m.id }}" {% if municipio_selecionado == m.id|stringformat:"s" %}selected{% endif %}>
+                {{ m.name }}
+            </option>
+        {% endfor %}
+    </select>
+</form>
+
+<ul>
+    {% for issue in issues %}
+        <li>
+            <a href="{% url 'issues:issue_detail' issue.pk %}">{{ issue.title }}</a>
+            — {{ issue.municipio.name }}
+        </li>
+    {% empty %}
+        <li>Nenhum issue reportado ainda.</li>
+    {% endfor %}
+</ul>
+{% endblock %}

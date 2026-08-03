@@ -9,6 +9,11 @@ services:
       - pgdata:/var/lib/postgresql/data
     ports:
       - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U civic_user -d civic_platform"]
+      interval: 2s
+      timeout: 3s
+      retries: 15
 
   app:
     build:
@@ -20,10 +25,12 @@ services:
       - .env
     ports:
       - "8000:8000"
-    command: sleep infinity
+    command: sh -c "python manage.py bootstrap && python manage.py runserver 0.0.0.0:8000 && sleep infinity"
     depends_on:
-      - db
-      - verifier
+      db:
+        condition: service_healthy
+      verifier:
+        condition: service_started
 
   verifier:
     build:

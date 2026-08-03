@@ -1,0 +1,27 @@
+{% extends 'issues/base.html' %}
+
+{% block title %}{{ issue.title }}{% endblock %}
+
+{% block content %}
+<h1>{{ issue.title }}</h1>
+<p>{{ issue.description }}</p>
+<p>Município: {{ issue.municipio.name }}</p>
+<p>Reportado por: {{ issue.created_by.username }} em {{ issue.created_at }}</p>
+
+<p><strong>{{ vote_count }}</strong> voto(s)</p>
+
+{% if user.is_authenticated %}
+    <form method="post" action="{% url 'issues:vote_toggle' issue.pk %}">
+        {% csrf_token %}
+        {% if user_vote %}
+            <button type="submit">Remover meu voto</button>
+        {% else %}
+            <button type="submit">Votar neste issue</button>
+        {% endif %}
+    </form>
+{% else %}
+    <p><a href="{% url 'login' %}">Entre</a> para votar.</p>
+{% endif %}
+
+<a href="{% url 'issues:issue_list' %}">Voltar</a>
+{% endblock %}
