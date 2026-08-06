@@ -1,5 +1,5 @@
 
-FROM docker.io/python:3.12-slim
+FROM docker.io/python:3.12.13-slim
  
 RUN apt-get update && apt-get install -y \
     gdal-bin libgdal-dev \
@@ -13,4 +13,9 @@ WORKDIR /workspace
  
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
+
+RUN useradd --create-home --shell /bin/bash appuser \
+    && chown -R appuser:appuser /workspace
+
+USER appuser
  

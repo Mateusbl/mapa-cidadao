@@ -1,8 +1,7 @@
-
-Django>=5.0,<5.1
-psycopg2-binary>=2.9
-python-dotenv>=1.0
-django-simple-history>=3.5
-pytest>=8.0
-pytest-django>=4.8
-requests>=2.31
+Django==5.0.14
+psycopg2-binary==2.9.9
+python-dotenv==1.0.1
+django-simple-history==3.5.0
+pytest==8.3.4
+pytest-django==4.9.0
+requests==2.31.0
