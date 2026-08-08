@@ -3,6 +3,12 @@
 {% block title %}Novo Issue{% endblock %}
 
 {% block content %}
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+<div id="map" style="height: 400px; margin-bottom: 1rem;"></div>
+
+
 <h1>Reportar novo problema</h1>
 
 <form method="post">
@@ -25,13 +31,61 @@
         </select>
     </div>
     <div>
-        <label>Latitude:</label>
-        <input type="text" name="lat" placeholder="-22.45" required>
+        <button type="button" id="get-location-btn">📍 Usar minha localização atual</button>
+        <span id="location-status">Ou clique no mapa acima para marcar o local</span>
     </div>
-    <div>
-        <label>Longitude:</label>
-        <input type="text" name="lng" placeholder="-43.95" required>
-    </div>
+    <input type="hidden" name="lat" id="id_lat" required>
+    <input type="hidden" name="lng" id="id_lng" required>
     <button type="submit">Enviar</button>
 </form>
+
+<script>
+    // Centro inicial: Rio de Janeiro, ajusta o zoom conforme necessário
+    const map = L.map('map').setView([-22.9, -43.2], 8);
+
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
+        maxZoom: 19,
+    }).addTo(map);
+
+    let marker = null;
+
+    function setLocation(lat, lng) {
+        document.getElementById('id_lat').value = lat;
+        document.getElementById('id_lng').value = lng;
+        document.getElementById('location-status').textContent = 'Local marcado ✓';
+
+        if (marker) {
+            marker.setLatLng([lat, lng]);
+        } else {
+            marker = L.marker([lat, lng]).addTo(map);
+        }
+        map.setView([lat, lng], 15);
+    }
+
+    // Clique no mapa marca o local
+    map.on('click', function(e) {
+        setLocation(e.latlng.lat, e.latlng.lng);
+    });
+
+    // Botão de geolocalização continua funcionando, agora também atualiza o mapa
+    document.getElementById('get-location-btn').addEventListener('click', function() {
+        const status = document.getElementById('location-status');
+        status.textContent = 'Obtendo localização...';
+
+        if (!navigator.geolocation) {
+            status.textContent = 'Seu navegador não suporta geolocalização.';
+            return;
+        }
+
+        navigator.geolocation.getCurrentPosition(
+            function(position) {
+                setLocation(position.coords.latitude, position.coords.longitude);
+            },
+            function(error) {
+                status.textContent = 'Não foi possível obter a localização. Clique no mapa pra marcar manualmente.';
+            }
+        );
+    });
+</script>
 {% endblock %}

@@ -2,7 +2,8 @@ from django.contrib.auth.decorators import login_required
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
 
-from .models import Issue, Vote, Municipio
+from django.utils import timezone
+from .models import Issue, Vote, Municipio, Report
 
 
 def issue_list(request):
@@ -86,3 +87,58 @@ def vote_toggle(request, pk):
         messages.warning(request, 'Este voto já foi revogado anteriormente e não pode ser reativado.')
 
     return redirect('issues:issue_detail', pk=pk)
+
+def user_is_moderator(user):
+    return user.groups.filter(name='Moderadores').exists()
+
+
+@login_required
+def report_issue(request, pk):
+    issue = get_object_or_404(Issue, pk=pk)
+    if request.method == 'POST':
+        reason = request.POST.get('reason', '')
+        Report.objects.get_or_create(
+            issue=issue, reported_by=request.user,
+            defaults={'reason': reason}
+        )
+        messages.success(request, 'Denúncia registrada. Um moderador vai revisar.')
+    return redirect('issues:issue_detail', pk=pk)
+
+
+@login_required
+def moderation_queue(request):
+    if not user_is_moderator(request.user):
+        messages.error(request, 'Acesso restrito a moderadores.')
+        return redirect('issues:issue_list')
+
+    reports = Report.objects.filter(resolved=False).select_related('issue', 'reported_by')
+    return render(request, 'issues/moderation_queue.html', {'reports': reports})
+
+
+@login_required
+def moderate_hide(request, report_id):
+    if not user_is_moderator(request.user):
+        return redirect('issues:issue_list')
+
+    report = get_object_or_404(Report, pk=report_id)
+    report.issue.soft_delete()
+    report.resolved = True
+    report.resolved_by = request.user
+    report.resolved_at = timezone.now()
+    report.save()
+    messages.success(request, 'Issue ocultado.')
+    return redirect('issues:moderation_queue')
+
+
+@login_required
+def moderate_dismiss(request, report_id):
+    if not user_is_moderator(request.user):
+        return redirect('issues:issue_list')
+
+    report = get_object_or_404(Report, pk=report_id)
+    report.resolved = True
+    report.resolved_by = request.user
+    report.resolved_at = timezone.now()
+    report.save()
+    messages.info(request, 'Denúncia descartada, issue mantido.')
+    return redirect('issues:moderation_queue')

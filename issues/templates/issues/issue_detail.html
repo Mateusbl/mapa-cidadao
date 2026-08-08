@@ -24,4 +24,13 @@
 {% endif %}
 
 <a href="{% url 'issues:issue_list' %}">Voltar</a>
+
+{% if user.is_authenticated %}
+    <form method="post" action="{% url 'issues:report_issue' issue.pk %}">
+        {% csrf_token %}
+        <input type="text" name="reason" placeholder="Motivo da denúncia" required>
+        <button type="submit">Denunciar</button>
+    </form>
+{% endif %}
+
 {% endblock %}

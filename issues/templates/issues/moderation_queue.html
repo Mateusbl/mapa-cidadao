@@ -1,0 +1,27 @@
+{% extends 'issues/base.html' %}
+
+{% block title %}Moderação{% endblock %}
+
+{% block content %}
+<h1>Fila de moderação</h1>
+
+<ul>
+    {% for report in reports %}
+        <li>
+            <strong>{{ report.issue.title }}</strong>
+            — denunciado por {{ report.reported_by.username }}
+            <br>Motivo: {{ report.reason }}
+            <form method="post" action="{% url 'issues:moderate_hide' report.id %}" style="display:inline">
+                {% csrf_token %}
+                <button type="submit">Ocultar issue</button>
+            </form>
+            <form method="post" action="{% url 'issues:moderate_dismiss' report.id %}" style="display:inline">
+                {% csrf_token %}
+                <button type="submit">Descartar denúncia</button>
+            </form>
+        </li>
+    {% empty %}
+        <li>Nenhuma denúncia pendente.</li>
+    {% endfor %}
+</ul>
+{% endblock %}
