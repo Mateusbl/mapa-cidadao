@@ -3,7 +3,12 @@
 {% block title %}Issues{% endblock %}
 
 {% block content %}
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
 <h1>Problemas reportados</h1>
+
+<div id="overview-map" style="height: 400px; margin-bottom: 1.5rem;"></div>
 
 <form method="get">
     <select name="municipio" onchange="this.form.submit()">
@@ -26,4 +31,26 @@
         <li>Nenhum issue reportado ainda.</li>
     {% endfor %}
 </ul>
+
+<script>
+    const points = JSON.parse('{{ map_points_json|escapejs }}');
+
+    const overviewMap = L.map('overview-map').setView([-22.9, -43.2], 8);
+
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
+        maxZoom: 19,
+    }).addTo(overviewMap);
+
+    points.forEach(function(point) {
+        const marker = L.marker([point.lat, point.lng]).addTo(overviewMap);
+        marker.bindPopup(`<a href="${point.url}">${point.title}</a>`);
+    });
+
+    // se houver pontos, ajusta o zoom/centro pra caber todos eles na tela
+    if (points.length > 0) {
+        const bounds = points.map(p => [p.lat, p.lng]);
+        overviewMap.fitBounds(bounds, { padding: [30, 30] });
+    }
+</script>
 {% endblock %}

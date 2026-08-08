@@ -1,7 +1,7 @@
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
-
+import json
 from django.utils import timezone
 from .models import Issue, Vote, Municipio, Report
 
@@ -14,11 +14,22 @@ def issue_list(request):
         issues = issues.filter(municipio_id=municipio_id)
 
     municipios = Municipio.objects.all().order_by('name')
+    
+    map_points = []
+    for issue in issues:
+        map_points.append({
+            'lat': issue.location.y,
+            'lng': issue.location.x,
+            'title': issue.title,
+            'url': f"/issue/{issue.pk}/"
+        })
 
     return render(request, 'issues/issue_list.html', {
         'issues': issues,
         'municipios': municipios,
         'municipio_selecionado': municipio_id,
+        'map_points': map_points,
+        'map_points_json': json.dumps(map_points)
     })
 
 
