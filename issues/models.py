@@ -92,3 +92,22 @@ class Vote(models.Model):
             self.previous_hash = last_vote.record_hash if last_vote else ''
             self.record_hash = self.compute_hash()
         super().save(*args, **kwargs)  # um único INSERT, tudo já calculado
+
+
+
+
+class Report(models.Model):
+    issue = models.ForeignKey(Issue, on_delete=models.CASCADE, related_name='reports')
+    reported_by = models.ForeignKey(User, on_delete=models.CASCADE)
+    reason = models.CharField(max_length=200)
+    created_at = models.DateTimeField(default=timezone.now)
+    resolved = models.BooleanField(default=False)
+    resolved_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='resolved_reports')
+    resolved_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        unique_together = ('issue', 'reported_by')
+
+    def __str__(self):
+        return f"Denúncia de {self.reported_by} em {self.issue}"
+    
