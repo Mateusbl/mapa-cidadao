@@ -1,9 +1,13 @@
 <!DOCTYPE html>
 <html lang="pt-br">
-<head>
-    <meta charset="UTF-8">
-    <title>{% block title %}Mapa Cidadão{% endblock %}</title>
-</head>
+    <head>
+        <meta charset="UTF-8">
+        <title>{% block title %}Mapa Cidadão{% endblock %}</title>
+        {% load static %}
+        <link rel="stylesheet" href="{% static 'issues/css/style.css' %}">
+        <link rel="preconnect" href="https://fonts.googleapis.com">
+        <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Inter:wght@400;600&family=IBM+Plex+Mono&display=swap" rel="stylesheet">
+    </head>
 <body>
     <nav>
         <a href="{% url 'issues:issue_list' %}">Início</a>

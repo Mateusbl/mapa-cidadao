@@ -1,0 +1,139 @@
+:root {
+    --ink: #1C2530;
+    --paper: #EDEAE1;
+    --azulejo: #2C5C7C;
+    --sinal: #E0A030;
+    --resolvido: #3D7A5C;
+    --urgente: #B23A2E;
+    --border: #C9C3B4;
+}
+
+* {
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Inter', -apple-system, sans-serif;
+    background: var(--paper);
+    color: var(--ink);
+    margin: 0;
+    padding: 0;
+    line-height: 1.5;
+}
+
+nav {
+    background: var(--ink);
+    color: var(--paper);
+    padding: 1rem 2rem;
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
+}
+
+nav a {
+    color: var(--paper);
+    text-decoration: none;
+    font-weight: 600;
+}
+
+nav a:hover {
+    color: var(--sinal);
+}
+
+main {
+    max-width: 900px;
+    margin: 2rem auto;
+    padding: 0 1.5rem;
+}
+
+h1 {
+    font-family: 'Space Grotesk', sans-serif;
+    font-weight: 700;
+    border-bottom: 3px solid var(--azulejo);
+    padding-bottom: 0.5rem;
+}
+
+ul {
+    list-style: none;
+    padding: 0;
+}
+
+li {
+    background: #fff;
+    border: 1px solid var(--border);
+    border-left: 4px solid var(--azulejo);
+    padding: 1rem 1.5rem;
+    margin-bottom: 0.75rem;
+    border-radius: 4px;
+}
+
+li a {
+    color: var(--azulejo);
+    font-weight: 600;
+    text-decoration: none;
+    font-size: 1.1rem;
+}
+
+li a:hover {
+    text-decoration: underline;
+}
+
+form {
+    background: #fff;
+    border: 1px solid var(--border);
+    padding: 1.5rem;
+    border-radius: 4px;
+    margin-bottom: 1rem;
+}
+
+form div {
+    margin-bottom: 1rem;
+}
+
+label {
+    display: block;
+    font-weight: 600;
+    margin-bottom: 0.25rem;
+}
+
+input[type="text"],
+textarea,
+select {
+    width: 100%;
+    padding: 0.5rem;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    font-family: inherit;
+    font-size: 1rem;
+}
+
+button {
+    background: var(--azulejo);
+    color: #fff;
+    border: none;
+    padding: 0.6rem 1.2rem;
+    border-radius: 4px;
+    font-weight: 600;
+    cursor: pointer;
+    font-family: inherit;
+}
+
+button:hover {
+    background: var(--ink);
+}
+
+.vote-count {
+    display: inline-block;
+    background: var(--sinal);
+    color: var(--ink);
+    font-family: 'IBM Plex Mono', monospace;
+    font-weight: 700;
+    padding: 0.2rem 0.6rem;
+    border-radius: 3px;
+    transform: rotate(-2deg);
+}
+
+#map {
+    border: 2px solid var(--azulejo);
+    border-radius: 4px;
+}
