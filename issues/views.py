@@ -91,7 +91,7 @@ def vote_toggle(request, pk):
         # revogação: nunca edita o voto original, já que é append-only —
         # apenas marca is_active=False, o que a trigger permite
         existing_vote.is_active = False
-        existing_vote.revoked_at = __import__('django.utils.timezone', fromlist=['now']).now()
+        existing_vote.revoked_at = timezone.now()
         existing_vote.save()
         messages.info(request, 'Voto revogado.')
     else:

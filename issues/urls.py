@@ -12,8 +12,5 @@ urlpatterns = [
     path('moderacao/', views.moderation_queue, name='moderation_queue'),
     path('moderacao/<int:report_id>/ocultar/', views.moderate_hide, name='moderate_hide'),
     path('moderacao/<int:report_id>/descartar/', views.moderate_dismiss, name='moderate_dismiss'),
-    path('issue/<int:pk>/denunciar/', views.report_issue, name='report_issue'),
-    path('moderacao/', views.moderation_queue, name='moderation_queue'),
-    path('moderacao/<int:report_id>/ocultar/', views.moderate_hide, name='moderate_hide'),
-    path('moderacao/<int:report_id>/descartar/', views.moderate_dismiss, name='moderate_dismiss'),
+
 ]
