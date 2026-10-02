@@ -1,0 +1,2 @@
+# scripts shell precisam de LF, senão o bash quebra no Windows/WSL
+*.sh text eol=lf

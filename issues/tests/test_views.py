@@ -124,6 +124,16 @@ class TestIssueList:
         assert '${point.title}' not in html
 
 
+class TestMapTiles:
+    @pytest.mark.parametrize('url', ['/', '/issue/novo/'])
+    def test_maps_use_keyless_osm_tiles(self, client, user, url):
+        # os tiles da CARTO passaram a devolver "API KEY REQUIRED" no lugar do mapa
+        client.force_login(user)
+        html = client.get(url).content.decode()
+        assert 'https://tile.openstreetmap.org/{z}/{x}/{y}.png' in html
+        assert 'cartocdn' not in html
+
+
 class TestVoting:
     def test_vote_count_on_detail(self, client, issue, user, other_user):
         Vote.objects.create(issue=issue, user=user)
