@@ -14,7 +14,7 @@ consideram prioritários. Votos e issues são protegidos contra adulteração:
 
 - Docker com Docker Compose (Docker Desktop no Mac/Windows)
 - `curl` e `bash` (no Windows, use o WSL)
-- Internet: a página carrega o mapa (Leaflet e tiles da CARTO) da web, e os municípios vêm da API do IBGE
+- Internet: a página carrega o mapa (Leaflet e tiles do OpenStreetMap) da web, e os municípios vêm da API do IBGE
 
 ### Subir
 
@@ -67,7 +67,7 @@ São credenciais só para demo local.
 - **"IBGE indisponível e sem cópia local"**: a API do IBGE não respondeu. Depois da primeira execução que der
   certo, o projeto guarda uma cópia em `.cache/ibge/` e passa a usá-la quando o IBGE estiver fora do ar.
   **Rode o script uma vez com internet boa antes da apresentação.**
-- **Mapa não aparece**: sem acesso a `unpkg.com` ou `basemaps.cartocdn.com` (rede do local bloqueando).
+- **Mapa não aparece**: sem acesso a `unpkg.com` ou `tile.openstreetmap.org` (rede do local bloqueando).
 - **Porta em uso (5432, 8000 ou 9000)**: pare o Postgres ou o outro serviço local que está usando a porta.
 - **Ver os logs**: `docker compose logs -f app`.
 - **Desligar tudo**: `docker compose down` (ou `docker compose down -v` para apagar também os dados).

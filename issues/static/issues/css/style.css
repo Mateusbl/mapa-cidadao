@@ -26,8 +26,15 @@ nav {
     color: var(--paper);
     padding: 1rem 2rem;
     display: flex;
+    flex-wrap: wrap;
     align-items: center;
-    gap: 1.5rem;
+    gap: 0.75rem 1.5rem;
+}
+
+@media (max-width: 600px) {
+    nav {
+        padding: 0.75rem 1rem;
+    }
 }
 
 nav a {
@@ -84,6 +91,14 @@ form {
     padding: 1.5rem;
     border-radius: 4px;
     margin-bottom: 1rem;
+}
+
+/* o logout é um form (POST), mas no menu não deve parecer um cartão */
+nav form {
+    background: none;
+    border: 0;
+    padding: 0;
+    margin: 0 0 0 auto;
 }
 
 form div {

@@ -47,6 +47,11 @@ verifier_secret="$(grep '^VERIFIER_SHARED_SECRET=' verifier/.env || true)"
 [ -n "$app_secret" ] || fail "VERIFIER_SHARED_SECRET não está no .env"
 [ "$app_secret" = "$verifier_secret" ] || fail "VERIFIER_SHARED_SECRET diferente entre .env e verifier/.env — o Verifier vai rejeitar os votos."
 
+# o container roda como outro usuário (appuser); sem isso ele não consegue
+# gravar a cópia local do IBGE na pasta do projeto montada como volume
+mkdir -p .cache/ibge
+chmod -R a+rwX .cache
+
 if [ "$RESET" = 1 ]; then
     step "Zerando banco e histórico do Verifier (use --keep pra manter)"
     docker compose down -v --remove-orphans
