@@ -1,4 +1,5 @@
 from django.contrib.auth.decorators import login_required
+from django.views.decorators.http import require_POST
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
 import json
@@ -64,10 +65,16 @@ def issue_create(request):
         from django.contrib.gis.geos import Point
         municipio = get_object_or_404(Municipio, pk=municipio_id)
 
+        try:
+            location = Point(float(lng), float(lat))
+        except ValueError:
+            messages.error(request, 'Localização inválida. Marque o local no mapa.')
+            return redirect('issues:issue_create')
+
         issue = Issue.objects.create(
             title=title,
             description=description,
-            location=Point(float(lng), float(lat)),
+            location=location,
             municipio=municipio,
             created_by=request.user,
         )
@@ -79,6 +86,7 @@ def issue_create(request):
 
 
 @login_required
+@require_POST
 def vote_toggle(request, pk):
     issue = get_object_or_404(Issue, pk=pk)
 
@@ -100,19 +108,19 @@ def vote_toggle(request, pk):
     return redirect('issues:issue_detail', pk=pk)
 
 def user_is_moderator(user):
-    return user.groups.filter(name='Moderadores').exists()
+    return user.is_superuser or user.groups.filter(name='Moderadores').exists()
 
 
 @login_required
+@require_POST
 def report_issue(request, pk):
     issue = get_object_or_404(Issue, pk=pk)
-    if request.method == 'POST':
-        reason = request.POST.get('reason', '')
-        Report.objects.get_or_create(
-            issue=issue, reported_by=request.user,
-            defaults={'reason': reason}
-        )
-        messages.success(request, 'Denúncia registrada. Um moderador vai revisar.')
+    reason = request.POST.get('reason', '')
+    Report.objects.get_or_create(
+        issue=issue, reported_by=request.user,
+        defaults={'reason': reason}
+    )
+    messages.success(request, 'Denúncia registrada. Um moderador vai revisar.')
     return redirect('issues:issue_detail', pk=pk)
 
 
@@ -127,21 +135,23 @@ def moderation_queue(request):
 
 
 @login_required
+@require_POST
 def moderate_hide(request, report_id):
     if not user_is_moderator(request.user):
         return redirect('issues:issue_list')
 
     report = get_object_or_404(Report, pk=report_id)
     report.issue.soft_delete()
-    report.resolved = True
-    report.resolved_by = request.user
-    report.resolved_at = timezone.now()
-    report.save()
+    # ocultar o issue resolve todas as denúncias pendentes dele, não só esta
+    Report.objects.filter(issue=report.issue, resolved=False).update(
+        resolved=True, resolved_by=request.user, resolved_at=timezone.now()
+    )
     messages.success(request, 'Issue ocultado.')
     return redirect('issues:moderation_queue')
 
 
 @login_required
+@require_POST
 def moderate_dismiss(request, report_id):
     if not user_is_moderator(request.user):
         return redirect('issues:issue_list')

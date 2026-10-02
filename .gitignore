@@ -5,4 +5,5 @@ __pycache__/
 .vscode/
 db.sqlite3
 staticfiles/
-media/verifier/.env
+media/
+verifier/.env

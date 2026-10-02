@@ -44,7 +44,11 @@
 
     points.forEach(function(point) {
         const marker = L.marker([point.lat, point.lng]).addTo(overviewMap);
-        marker.bindPopup(`<a href="${point.url}">${point.title}</a>`);
+        // monta o link via DOM pra o título (texto do usuário) nunca ser interpretado como HTML
+        const link = document.createElement('a');
+        link.href = point.url;
+        link.textContent = point.title;
+        marker.bindPopup(link);
     });
 
     // se houver pontos, ajusta o zoom/centro pra caber todos eles na tela
