@@ -1,10 +1,10 @@
 from django.test import TestCase
 import pytest
 import requests
-from django.contrib.auth.models import User
+from django.contrib.auth.models import Group, User
 from django.contrib.gis.geos import Point, Polygon, MultiPolygon
 from django.db import connection
-from issues.models import Issue, Vote, Municipio
+from issues.models import Issue, Vote, Municipio, Report
 
 
 # ---------- Fixtures ----------
@@ -119,3 +119,54 @@ class TestVerifierIntegration:
         data = resp.json()
         assert data["status"] == "MISMATCH"
         assert data["expected"] == vote.compute_hash()
+
+
+# ---------- Views: fluxos usados na demo ----------
+
+class TestViews:
+    def test_login_required_redirects_to_login_page(self, client, db):
+        resp = client.get('/issue/novo/')
+        assert resp.status_code == 302
+        assert resp.url.startswith('/login/')
+
+    def test_login_redirects_to_issue_list(self, client, user):
+        resp = client.post('/login/', {'username': 'testuser', 'password': 'senha123'})
+        assert resp.status_code == 302
+        assert resp.url == '/'
+
+    def test_vote_via_get_is_rejected(self, client, issue, user):
+        client.force_login(user)
+        resp = client.get(f'/issue/{issue.pk}/votar/')
+        assert resp.status_code == 405
+        assert Vote.objects.count() == 0
+
+    def test_vote_via_post_registers(self, client, issue, user):
+        client.force_login(user)
+        client.post(f'/issue/{issue.pk}/votar/')
+        assert Vote.objects.filter(issue=issue, user=user, is_active=True).count() == 1
+
+    def test_invalid_location_does_not_crash(self, client, municipio, user):
+        client.force_login(user)
+        resp = client.post('/issue/novo/', {
+            'title': 't', 'description': 'd', 'municipio': municipio.pk, 'lat': 'abc', 'lng': '-43.2',
+        })
+        assert resp.status_code == 302
+        assert Issue.objects.count() == 0
+
+    def test_moderator_can_hide_issue(self, client, issue, user):
+        moderador = User.objects.create_user(username='mod', password='senha123')
+        moderador.groups.add(Group.objects.get(name='Moderadores'))
+        report = Report.objects.create(issue=issue, reported_by=user, reason='spam')
+
+        client.force_login(moderador)
+        client.post(f'/moderacao/{report.pk}/ocultar/')
+
+        assert Issue.objects.filter(pk=issue.pk).count() == 0
+        report.refresh_from_db()
+        assert report.resolved is True
+
+    def test_regular_user_cannot_moderate(self, client, issue, user):
+        report = Report.objects.create(issue=issue, reported_by=user, reason='spam')
+        client.force_login(user)
+        client.post(f'/moderacao/{report.pk}/ocultar/')
+        assert Issue.objects.filter(pk=issue.pk).count() == 1

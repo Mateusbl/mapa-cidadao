@@ -13,6 +13,9 @@
         <a href="{% url 'issues:issue_list' %}">Início</a>
         {% if user.is_authenticated %}
             <a href="{% url 'issues:issue_create' %}">Novo Issue</a>
+            {% if is_moderator %}
+                <a href="{% url 'issues:moderation_queue' %}">Moderação</a>
+            {% endif %}
             <span>Olá, {{ user.username }}</span>
             <form method="post" action="{% url 'logout' %}" style="display:inline">
                 {% csrf_token %}
