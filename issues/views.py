@@ -3,6 +3,8 @@ from django.views.decorators.http import require_POST
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
 import json
+import math
+from django.contrib.gis.geos import Point
 from django.utils import timezone
 from .models import Issue, Vote, Municipio, Report
 
@@ -11,13 +13,15 @@ def issue_list(request):
     issues = Issue.objects.all().select_related('municipio', 'created_by')
 
     municipio_id = request.GET.get('municipio')
-    if municipio_id:
+    if municipio_id and municipio_id.isdigit():
         issues = issues.filter(municipio_id=municipio_id)
 
     municipios = Municipio.objects.all().order_by('name')
     
     map_points = []
     for issue in issues:
+        if not (math.isfinite(issue.location.x) and math.isfinite(issue.location.y)):
+            continue  # um ponto inválido no banco não pode derrubar o mapa inteiro
         map_points.append({
             'lat': issue.location.y,
             'lng': issue.location.x,
@@ -58,18 +62,37 @@ def issue_create(request):
         lat = request.POST.get('lat')
         lng = request.POST.get('lng')
 
-        if not all([title, description, municipio_id, lat, lng]):
-            messages.error(request, 'Preencha todos os campos.')
-            return redirect('issues:issue_create')
+        def form_error(msg):
+            # re-renderiza com o que o usuário digitou, pra não perder o texto
+            messages.error(request, msg)
+            return render(request, 'issues/issue_form.html', {
+                'municipios': Municipio.objects.all().order_by('name'),
+                'form_data': request.POST,
+            })
 
-        from django.contrib.gis.geos import Point
-        municipio = get_object_or_404(Municipio, pk=municipio_id)
+        if not all([title, description, municipio_id, lat, lng]):
+            return form_error('Preencha todos os campos e marque o local no mapa.')
+
+        max_title = Issue._meta.get_field('title').max_length
+        if len(title) > max_title:
+            return form_error(f'O título pode ter no máximo {max_title} caracteres.')
+
+        municipio = Municipio.objects.filter(pk=municipio_id).first() if municipio_id.isdigit() else None
+        if municipio is None:
+            return form_error('Município inválido.')
 
         try:
-            location = Point(float(lng), float(lat))
+            lat, lng = float(lat), float(lng)
         except ValueError:
-            messages.error(request, 'Localização inválida. Marque o local no mapa.')
-            return redirect('issues:issue_create')
+            lat = lng = math.nan
+        if not (math.isfinite(lat) and math.isfinite(lng) and -90 <= lat <= 90 and -180 <= lng <= 180):
+            return form_error('Localização inválida. Marque o local no mapa.')
+
+        location = Point(lng, lat, srid=4326)
+        if not municipio.boundary.contains(location):
+            correto = Municipio.objects.filter(boundary__contains=location).first()
+            dica = f' O ponto marcado fica em {correto.name}.' if correto else ''
+            return form_error(f'O local marcado não fica em {municipio.name}.{dica}')
 
         issue = Issue.objects.create(
             title=title,

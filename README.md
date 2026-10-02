@@ -30,6 +30,6 @@ Para dar permissão de moderação a outro usuário, adicione-o ao grupo **Moder
 ## Comandos úteis
 
 ```bash
-docker compose exec app python manage.py verify_chain   # confere a cadeia de hashes dos votos
+docker compose exec app python manage.py verify_chain   # confere a cadeia de hashes dos votos e issues
 docker compose exec app pytest issues/tests.py -v       # testes (inclui integração com o Verifier)
 ```

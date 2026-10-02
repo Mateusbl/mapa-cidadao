@@ -1,8 +1,10 @@
-from django.test import TestCase
+import threading
+
 import pytest
 import requests
 from django.contrib.auth.models import Group, User
 from django.contrib.gis.geos import Point, Polygon, MultiPolygon
+from django.core.management import call_command
 from django.db import connection
 from issues.models import Issue, Vote, Municipio, Report
 
@@ -71,6 +73,26 @@ class TestVoteHashChain:
         assert vote.compute_hash() != vote.record_hash
 
 
+class TestChainConcurrency:
+    def test_concurrent_votes_keep_chain_intact(self, transactional_db, issue):
+        users = [User.objects.create_user(username=f'c{n}', password='senha123') for n in range(8)]
+        barrier = threading.Barrier(len(users))
+
+        def vote(u):
+            barrier.wait()
+            Vote.objects.create(issue=issue, user=u)
+            connection.close()
+
+        threads = [threading.Thread(target=vote, args=(u,)) for u in users]
+        for t in threads:
+            t.start()
+        for t in threads:
+            t.join()
+
+        call_command('verify_chain')  # levanta CommandError se a cadeia bifurcou
+        assert Vote.objects.count() == len(users)
+
+
 # ---------- Issue: soft delete + content protection ----------
 
 class TestIssueContentProtection:
@@ -88,6 +110,15 @@ class TestIssueContentProtection:
         issue.title = "Alterado"
         with pytest.raises(Exception, match="imutável"):
             issue.save()
+
+    def test_location_edit_is_blocked(self, issue):
+        issue.location = Point(-43.91, -22.41)
+        with pytest.raises(Exception, match="imutável"):
+            issue.save()
+
+    def test_hard_delete_is_blocked(self, issue):
+        with pytest.raises(Exception, match="imutável"):
+            Issue.all_objects.filter(id=issue.id).delete()
 
     def test_description_edit_is_blocked(self, issue):
         issue.description = "Descrição alterada"
@@ -145,13 +176,32 @@ class TestViews:
         client.post(f'/issue/{issue.pk}/votar/')
         assert Vote.objects.filter(issue=issue, user=user, is_active=True).count() == 1
 
-    def test_invalid_location_does_not_crash(self, client, municipio, user):
+    @pytest.mark.parametrize('overrides', [
+        {'lat': 'abc'},
+        {'lat': 'nan'},
+        {'lat': '999'},
+        {'municipio': 'abc'},
+        {'title': 'a' * 201},
+        {'lat': '-23.55', 'lng': '-46.63'},  # fora do município
+    ])
+    def test_invalid_issue_input_is_rejected(self, client, municipio, user, overrides):
+        client.force_login(user)
+        data = {'title': 't', 'description': 'd', 'municipio': municipio.pk, 'lat': '-22.45', 'lng': '-43.95'}
+        data.update(overrides)
+        resp = client.post('/issue/novo/', data)
+        assert resp.status_code == 200  # volta pro formulário com erro, sem 500
+        assert Issue.objects.count() == 0
+
+    def test_valid_issue_is_created(self, client, municipio, user):
         client.force_login(user)
         resp = client.post('/issue/novo/', {
-            'title': 't', 'description': 'd', 'municipio': municipio.pk, 'lat': 'abc', 'lng': '-43.2',
+            'title': 't', 'description': 'd', 'municipio': municipio.pk, 'lat': '-22.45', 'lng': '-43.95',
         })
         assert resp.status_code == 302
-        assert Issue.objects.count() == 0
+        assert Issue.objects.count() == 1
+
+    def test_list_with_invalid_filter_does_not_crash(self, client, issue):
+        assert client.get('/?municipio=abc').status_code == 200
 
     def test_moderator_can_hide_issue(self, client, issue, user):
         moderador = User.objects.create_user(username='mod', password='senha123')

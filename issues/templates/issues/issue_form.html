@@ -15,18 +15,18 @@
     {% csrf_token %}
     <div>
         <label>Título:</label>
-        <input type="text" name="title" required>
+        <input type="text" name="title" maxlength="200" value="{{ form_data.title }}" required>
     </div>
     <div>
         <label>Descrição:</label>
-        <textarea name="description" required></textarea>
+        <textarea name="description" required>{{ form_data.description }}</textarea>
     </div>
     <div>
         <label>Município:</label>
         <select name="municipio" required>
             <option value="">Selecione</option>
             {% for m in municipios %}
-                <option value="{{ m.id }}">{{ m.name }}</option>
+                <option value="{{ m.id }}" {% if form_data.municipio == m.id|stringformat:"s" %}selected{% endif %}>{{ m.name }}</option>
             {% endfor %}
         </select>
     </div>
@@ -34,8 +34,8 @@
         <button type="button" id="get-location-btn">📍 Usar minha localização atual</button>
         <span id="location-status">Ou clique no mapa acima para marcar o local</span>
     </div>
-    <input type="hidden" name="lat" id="id_lat" required>
-    <input type="hidden" name="lng" id="id_lng" required>
+    <input type="hidden" name="lat" id="id_lat" value="{{ form_data.lat }}" required>
+    <input type="hidden" name="lng" id="id_lng" value="{{ form_data.lng }}" required>
     <button type="submit">Enviar</button>
 </form>
 
@@ -61,6 +61,13 @@
             marker = L.marker([lat, lng]).addTo(map);
         }
         map.setView([lat, lng], 15);
+    }
+
+    // depois de um erro de validação, mostra de novo o local que já tinha sido marcado
+    const prevLat = parseFloat(document.getElementById('id_lat').value);
+    const prevLng = parseFloat(document.getElementById('id_lng').value);
+    if (Number.isFinite(prevLat) && Number.isFinite(prevLng)) {
+        setLocation(prevLat, prevLng);
     }
 
     // Clique no mapa marca o local
