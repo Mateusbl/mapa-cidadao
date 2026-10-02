@@ -27,8 +27,10 @@ services:
       - "8000:8000"
     command: sh -c "python manage.py bootstrap && python manage.py runserver 0.0.0.0:8000 && sleep infinity"
     depends_on:
+      # service_started, não service_healthy: no Podman sem systemd o healthcheck
+      # nunca roda e o compose travaria. O bootstrap já espera o banco aceitar conexão.
       db:
-        condition: service_healthy
+        condition: service_started
       verifier:
         condition: service_started
 

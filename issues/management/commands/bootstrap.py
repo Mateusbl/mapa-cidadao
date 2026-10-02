@@ -34,7 +34,7 @@ class Command(BaseCommand):
         else:
             self.stdout.write(self.style.ERROR("==> Testes falharam. Revise antes de continuar."))
 
-    def _wait_for_db(self, max_attempts=15):
+    def _wait_for_db(self, max_attempts=60):  # a 1ª inicialização do PostGIS pode levar ~1 min
         for attempt in range(max_attempts):
             try:
                 connection.ensure_connection()
