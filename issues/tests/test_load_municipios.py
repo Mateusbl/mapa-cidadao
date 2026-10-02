@@ -2,8 +2,10 @@
 import json
 
 import pytest
+import requests
 from django.contrib.gis.geos import Point
 from django.core.management import call_command
+from django.core.management.base import CommandError
 
 from issues.management.commands import load_municipios
 from issues.models import Municipio
@@ -22,6 +24,22 @@ class FakeResponse:
 
     def json(self):
         return self.data
+
+
+@pytest.fixture(autouse=True)
+def cache_dir(tmp_path, monkeypatch):
+    # nunca escrever no cache de verdade: os dados aqui são falsos
+    monkeypatch.setattr(load_municipios, 'CACHE_DIR', tmp_path / 'ibge')
+    return tmp_path / 'ibge'
+
+
+def offline(url, timeout):
+    raise requests.ConnectionError('sem internet')
+
+
+@pytest.fixture
+def ibge_down(monkeypatch):
+    monkeypatch.setattr(load_municipios.requests, 'get', offline)
 
 
 @pytest.fixture
@@ -57,3 +75,24 @@ def test_running_twice_updates(db, fake_ibge):
     call_command('load_municipios')
     call_command('load_municipios')
     assert Municipio.objects.count() == 2
+
+
+def test_saves_local_copy(db, fake_ibge, cache_dir):
+    call_command('load_municipios')
+    assert (cache_dir / 'localidades.json').exists()
+    assert (cache_dir / 'malhas.json').exists()
+
+
+def test_uses_local_copy_when_ibge_is_down(db, fake_ibge, cache_dir, monkeypatch, capsys):
+    call_command('load_municipios')
+    Municipio.objects.all().delete()
+
+    monkeypatch.setattr(load_municipios.requests, 'get', offline)
+    call_command('load_municipios')
+    assert Municipio.objects.count() == 2
+    assert 'cópia local' in capsys.readouterr().out
+
+
+def test_fails_clearly_without_ibge_and_without_copy(db, ibge_down):
+    with pytest.raises(CommandError, match='IBGE indisponível'):
+        call_command('load_municipios')

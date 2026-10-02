@@ -1,8 +1,9 @@
 import json
 
 import requests
+from django.conf import settings
 from django.contrib.gis.geos import GEOSGeometry, MultiPolygon
-from django.core.management.base import BaseCommand
+from django.core.management.base import BaseCommand, CommandError
 
 from issues.models import Municipio
 
@@ -11,6 +12,10 @@ MALHAS_URL = (
     "?formato=application/vnd.geo+json&resolucao=2&intrarregiao=municipio"
 )
 LOCALIDADES_URL = "https://servicodados.ibge.gov.br/api/v1/localidades/estados/RJ/municipios"
+
+# cópia local da última resposta boa do IBGE: a demo sobe o banco do zero toda vez,
+# então sem isso uma instabilidade na API (ou na internet do local) impede a apresentação
+CACHE_DIR = settings.BASE_DIR / ".cache" / "ibge"
 
 
 def to_multipolygon(geom):
@@ -33,17 +38,13 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options):
         self.stdout.write("Buscando nomes dos municípios...")
-        nomes_response = requests.get(LOCALIDADES_URL, timeout=30)
-        nomes_response.raise_for_status()
-        localidades = nomes_response.json()
+        localidades = self._fetch(LOCALIDADES_URL, "localidades.json")
 
         # monta um dicionário código -> nome, pra cruzar com a malha depois
         nomes_por_codigo = {str(m["id"]): m["nome"] for m in localidades}
 
         self.stdout.write("Buscando geometrias na API de malhas...")
-        malha_response = requests.get(MALHAS_URL, timeout=30)
-        malha_response.raise_for_status()
-        geojson = malha_response.json()
+        geojson = self._fetch(MALHAS_URL, "malhas.json")
 
         features = geojson.get("features", [])
         self.stdout.write(f"Recebidos {len(features)} municípios (geometria).")
@@ -87,3 +88,22 @@ class Command(BaseCommand):
         self.stdout.write(self.style.SUCCESS(
             f"Concluído: {created_count} criados, {updated_count} atualizados, {skipped_count} pulados."
         ))
+
+    def _fetch(self, url, cache_name):
+        cache_file = CACHE_DIR / cache_name
+        try:
+            response = requests.get(url, timeout=30)
+            response.raise_for_status()
+            data = response.json()
+        except (requests.RequestException, ValueError) as e:
+            if not cache_file.exists():
+                raise CommandError(f"IBGE indisponível e sem cópia local em {cache_file}: {e}")
+            self.stdout.write(self.style.WARNING(f"IBGE indisponível ({e.__class__.__name__}), usando a cópia local."))
+            return json.loads(cache_file.read_text())
+
+        try:
+            CACHE_DIR.mkdir(parents=True, exist_ok=True)
+            cache_file.write_text(json.dumps(data))
+        except OSError as e:
+            self.stdout.write(self.style.WARNING(f"Não consegui salvar a cópia local do IBGE: {e}"))
+        return data

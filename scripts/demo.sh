@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
-# Sobe o Mapa Cidadão do zero e deixa tudo pronto pra demo:
-# containers, migrations, municípios do IBGE, testes, dados de exemplo e
-# checagem da cadeia de hashes.
+# Sobe o Mapa Cidadão com o banco zerado e deixa tudo pronto pra demo:
+# containers, migrations, municípios do IBGE, testes, usuários e dados de
+# exemplo e checagem da cadeia de hashes.
 #
-# Uso: ./scripts/demo.sh [--reset] [--no-build]
-#   --reset     apaga o banco e o histórico do Verifier antes de subir
+# Uso: ./scripts/demo.sh [--keep] [--no-build]
+#   --keep      mantém o banco atual em vez de começar do zero
 #   --no-build  não reconstrói as imagens
 set -euo pipefail
 
@@ -12,12 +12,13 @@ cd "$(dirname "$0")/.."
 
 APP_URL="http://localhost:8000"
 WAIT_SECONDS="${WAIT_SECONDS:-600}"
-RESET=0
+RESET=1
 BUILD="--build"
 
 for arg in "$@"; do
     case "$arg" in
-        --reset) RESET=1 ;;
+        --keep) RESET=0 ;;
+        --reset) RESET=1 ;;  # já é o padrão; aceito por compatibilidade
         --no-build) BUILD="" ;;
         -h|--help) sed -n '2,9p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
         *) echo "Opção desconhecida: $arg" >&2; exit 2 ;;
@@ -47,7 +48,7 @@ verifier_secret="$(grep '^VERIFIER_SHARED_SECRET=' verifier/.env || true)"
 [ "$app_secret" = "$verifier_secret" ] || fail "VERIFIER_SHARED_SECRET diferente entre .env e verifier/.env — o Verifier vai rejeitar os votos."
 
 if [ "$RESET" = 1 ]; then
-    step "Resetando banco e Verifier (--reset)"
+    step "Zerando banco e histórico do Verifier (use --keep pra manter)"
     docker compose down -v --remove-orphans
 fi
 
@@ -78,7 +79,7 @@ docker compose exec -T app python manage.py seed_demo
 
 step "Verificando a integridade das cadeias de hash"
 docker compose exec -T app python manage.py verify_chain \
-    || fail "a cadeia de hashes está quebrada neste banco. Para começar do zero: ./scripts/demo.sh --reset"
+    || fail "a cadeia de hashes está quebrada neste banco. Rode sem --keep pra começar do zero."
 
 step "Checando as páginas principais"
 for path in / /login/ /admin/login/; do

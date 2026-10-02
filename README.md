@@ -8,30 +8,69 @@ consideram prioritários. Votos e issues são protegidos contra adulteração:
 - **Verifier** — serviço FastAPI separado que recebe cada voto assinado com HMAC e permite conferir o hash depois.
 - **Moderação** — denúncias de usuários vão para uma fila; moderadores ocultam (soft delete) ou descartam.
 
-## Como rodar (demo)
+## Como rodar a demo
+
+### Pré-requisitos
+
+- Docker com Docker Compose (Docker Desktop no Mac/Windows)
+- `curl` e `bash` (no Windows, use o WSL)
+- Internet: a página carrega o mapa (Leaflet e tiles da CARTO) da web, e os municípios vêm da API do IBGE
+
+### Subir
 
 ```bash
 ./scripts/demo.sh
 ```
 
-O script faz tudo de ponta a ponta:
+Cada execução **começa com o banco zerado** e deixa tudo pronto:
 
-1. cria `.env` e `verifier/.env` (a partir do `.env.example`, com um segredo do Verifier gerado na hora);
-2. sobe os containers (`docker compose up -d --build`);
-3. espera o `bootstrap`: migrations, municípios do RJ pela API do IBGE (precisa de internet) e a suíte de testes;
-4. cria os dados de exemplo (`seed_demo`): usuários, issues espalhados pelo RJ, votos e uma denúncia pendente;
-5. confere as cadeias de hash (`verify_chain`) e as páginas principais.
+1. cria `.env` e `verifier/.env` na primeira vez (a partir do `.env.example`, com um segredo do Verifier gerado na hora);
+2. apaga o banco e o histórico do Verifier;
+3. sobe os containers (`docker compose up -d --build`);
+4. espera o `bootstrap`: migrations, municípios do RJ pelo IBGE e a suíte de testes (para se algum teste falhar);
+5. cria os usuários de teste e os dados de exemplo (`seed_demo`): 5 issues pelo RJ, votos e uma denúncia pendente;
+6. confere as cadeias de hash (`verify_chain`) e as páginas principais.
 
-Opções: `--reset` apaga o banco e o histórico do Verifier antes de subir (use se o `verify_chain` acusar
-cadeia quebrada por causa de testes antigos), `--no-build` pula o build das imagens.
+A primeira vez demora alguns minutos (build das imagens). Quando terminar, acesse **http://localhost:8000**.
 
-Logins criados pelo `seed_demo` (só para demo local):
+Opções:
+
+| opção | o que faz |
+|---|---|
+| `--keep` | mantém o banco atual em vez de zerar |
+| `--no-build` | não reconstrói as imagens (mais rápido se nada mudou nas dependências) |
+
+### Usuários de teste
 
 | usuário | senha | papel |
 |---|---|---|
-| `admin` | `admin12345` | admin + moderação |
-| `moderador` | `demo12345` | fila de moderação |
+| `admin` | `admin12345` | admin (`/admin/`) e moderação |
+| `moderador` | `demo12345` | fila de moderação (`/moderacao/`) |
 | `ana`, `bruno`, `carla` | `demo12345` | cidadãos |
+
+São credenciais só para demo local.
+
+### Roteiro sugerido
+
+1. Abrir a página inicial: mapa com os problemas reportados, filtro por município.
+2. Entrar como `ana`, clicar em **Novo Issue**, marcar o local no mapa e enviar.
+   Se o ponto não estiver no município escolhido, o sistema avisa em qual ele fica (PostGIS).
+3. Votar no issue e depois remover o voto: a revogação é definitiva, porque votos são append-only.
+4. Sair e entrar como `moderador`, abrir **Moderação** e ocultar o issue denunciado (soft delete).
+5. Mostrar a auditoria:
+   ```bash
+   docker compose exec app python manage.py verify_chain
+   ```
+
+### Se der problema
+
+- **"IBGE indisponível e sem cópia local"**: a API do IBGE não respondeu. Depois da primeira execução que der
+  certo, o projeto guarda uma cópia em `.cache/ibge/` e passa a usá-la quando o IBGE estiver fora do ar.
+  **Rode o script uma vez com internet boa antes da apresentação.**
+- **Mapa não aparece**: sem acesso a `unpkg.com` ou `basemaps.cartocdn.com` (rede do local bloqueando).
+- **Porta em uso (5432, 8000 ou 9000)**: pare o Postgres ou o outro serviço local que está usando a porta.
+- **Ver os logs**: `docker compose logs -f app`.
+- **Desligar tudo**: `docker compose down` (ou `docker compose down -v` para apagar também os dados).
 
 ## Comandos úteis
 
