@@ -1,4 +1,4 @@
-from django.db import models
+from django.db import connection, models, transaction
 from django.contrib.gis.db import models as gis_models
 from simple_history.models import HistoricalRecords
 from django.contrib.auth.models import User
@@ -15,6 +15,13 @@ class Municipio(models.Model):
         return self.name
     
     
+def _lock_chain(name):
+    # serializa inserts concorrentes da mesma cadeia: sem isso, dois registros
+    # criados ao mesmo tempo pegam o mesmo previous_hash e a cadeia bifurca
+    with connection.cursor() as cursor:
+        cursor.execute("SELECT pg_advisory_xact_lock(hashtext(%s))", [name])
+
+
 class IssueManager(models.Manager):
     def get_queryset(self):
         return super().get_queryset().filter(is_deleted=False)
@@ -43,13 +50,16 @@ class Issue(models.Model):
         return hashlib.sha256(payload.encode()).hexdigest()
 
     def save(self, *args, **kwargs):
-        if self.pk is None:
+        if self.pk is not None:
+            return super().save(*args, **kwargs)
+        with transaction.atomic():
+            _lock_chain('issues_issue')
             if not self.created_at:
                 self.created_at = timezone.now()
             last_issue = Issue.all_objects.order_by('-id').first()
             self.previous_hash = last_issue.record_hash if last_issue else ''
             self.record_hash = self.compute_hash()
-        super().save(*args, **kwargs)
+            super().save(*args, **kwargs)
 
     def soft_delete(self):
         self.is_deleted = True
@@ -85,13 +95,16 @@ class Vote(models.Model):
         return hashlib.sha256(payload.encode()).hexdigest()
 
     def save(self, *args, **kwargs):
-        if self.pk is None:  # só na criação
+        if self.pk is not None:  # revogação: só atualiza, hash não muda
+            return super().save(*args, **kwargs)
+        with transaction.atomic():
+            _lock_chain('issues_vote')
             if not self.created_at:
                 self.created_at = timezone.now()
             last_vote = Vote.objects.order_by('-id').first()
             self.previous_hash = last_vote.record_hash if last_vote else ''
             self.record_hash = self.compute_hash()
-        super().save(*args, **kwargs)  # um único INSERT, tudo já calculado
+            super().save(*args, **kwargs)  # um único INSERT, tudo já calculado
 
 
 

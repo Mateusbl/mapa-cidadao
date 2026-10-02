@@ -14,14 +14,26 @@ class IssueAdmin(admin.ModelAdmin):
     list_display = ('title', 'municipio', 'created_by', 'created_at', 'is_deleted')
     list_filter = ('municipio', 'is_deleted')
     search_fields = ('title', 'description')
-    readonly_fields = ('record_hash', 'previous_hash', 'created_at')  # imutável, então nem faz sentido editar
+    # conteúdo é imutável (trigger no banco), só o soft delete pode mudar
+    readonly_fields = ('title', 'description', 'location', 'municipio', 'created_by',
+                       'record_hash', 'previous_hash', 'created_at')
+
+    def has_delete_permission(self, request, obj=None):
+        return False  # delete físico é bloqueado pelo banco, use is_deleted
 
 
 @admin.register(Vote)
 class VoteAdmin(admin.ModelAdmin):
     list_display = ('issue', 'user', 'created_at', 'is_active')
     list_filter = ('is_active',)
-    readonly_fields = ('record_hash', 'previous_hash', 'created_at')  # append-only, admin também não deve poder editar
+    # append-only: só a revogação (is_active/revoked_at/revoked_reason) pode mudar
+    readonly_fields = ('issue', 'user', 'record_hash', 'previous_hash', 'created_at')
+
+    def has_add_permission(self, request):
+        return False  # votos entram pelo site, pra passar pelo hash chain e pelo Verifier
+
+    def has_delete_permission(self, request, obj=None):
+        return False  # bloqueado pelo trigger
 
 
 @admin.register(Report)

@@ -27,6 +27,9 @@ def _send_to_verifier(vote, action):
         'action': action,
         'observed_at': timezone.now().isoformat(),
     }
+    if not SHARED_SECRET:
+        print("ERRO: VERIFIER_SHARED_SECRET não configurado, voto não enviado ao verificador")
+        return
     signature = sign_payload(payload, SHARED_SECRET)
     try:
         requests.post(
