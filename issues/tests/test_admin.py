@@ -62,3 +62,14 @@ def test_vote_revocation_via_admin(admin_client, vote):
 def test_report_admin_change_page(admin_client, issue, user):
     report = Report.objects.create(issue=issue, reported_by=user, reason='spam')
     assert admin_client.get(f'/admin/issues/report/{report.pk}/change/').status_code == 200
+
+
+def test_hidden_issue_is_listed_and_can_be_restored(admin_client, issue):
+    issue.soft_delete()
+    resp = admin_client.get('/admin/issues/issue/?is_deleted__exact=1')
+    assert 'Issue de teste' in resp.content.decode()
+
+    resp = admin_client.post(f'/admin/issues/issue/{issue.pk}/change/', {})  # desmarca is_deleted
+    assert resp.status_code == 302
+    issue.refresh_from_db()
+    assert issue.is_deleted is False

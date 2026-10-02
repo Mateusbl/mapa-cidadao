@@ -2,6 +2,7 @@ from django.contrib.auth.decorators import login_required
 from django.views.decorators.http import require_POST
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
+from django.db import IntegrityError
 import json
 import math
 from django.contrib.gis.geos import Point
@@ -116,7 +117,10 @@ def vote_toggle(request, pk):
     existing_vote = Vote.objects.filter(issue=issue, user=request.user).first()
 
     if existing_vote is None:
-        Vote.objects.create(issue=issue, user=request.user)
+        try:
+            Vote.objects.create(issue=issue, user=request.user)
+        except IntegrityError:
+            pass  # duplo clique: a outra requisição já registrou o voto
         messages.success(request, 'Voto registrado.')
     elif existing_vote.is_active:
         # revogação: nunca edita o voto original, já que é append-only —
@@ -138,7 +142,11 @@ def user_is_moderator(user):
 @require_POST
 def report_issue(request, pk):
     issue = get_object_or_404(Issue, pk=pk)
-    reason = request.POST.get('reason', '')
+    reason = request.POST.get('reason', '').strip()
+    max_reason = Report._meta.get_field('reason').max_length
+    if not reason or len(reason) > max_reason:
+        messages.error(request, f'Informe o motivo da denúncia (até {max_reason} caracteres).')
+        return redirect('issues:issue_detail', pk=pk)
     Report.objects.get_or_create(
         issue=issue, reported_by=request.user,
         defaults={'reason': reason}
