@@ -2,11 +2,14 @@
 import json
 import math
 import re
+import threading
 
 import pytest
 from django.contrib.auth.models import User
 from django.contrib.gis.geos import Point
 from django.core.management import call_command
+from django.db import connection
+from django.test import Client
 
 from issues.models import Issue, Report, Vote
 
@@ -165,6 +168,27 @@ class TestVoting:
         assert 'revogação é definitiva' in html
         assert 'Votar neste issue' not in html
 
+    def test_double_click_does_not_crash(self, transactional_db, issue, user):
+        # duas requisições simultâneas tentando criar o mesmo voto
+        barrier = threading.Barrier(2)
+        statuses = []
+
+        def click():
+            c = Client(raise_request_exception=False)
+            c.force_login(user)
+            barrier.wait()
+            statuses.append(c.post(f'/issue/{issue.pk}/votar/').status_code)
+            connection.close()
+
+        threads = [threading.Thread(target=click) for _ in range(2)]
+        for t in threads:
+            t.start()
+        for t in threads:
+            t.join()
+
+        assert statuses == [302, 302]
+        assert Vote.objects.filter(issue=issue, user=user, is_active=True).count() == 1
+
     def test_anonymous_cannot_vote(self, client, issue):
         resp = client.post(f'/issue/{issue.pk}/votar/')
         assert resp.status_code == 302
@@ -185,6 +209,13 @@ class TestReports:
         client.post(f'/issue/{issue.pk}/denunciar/', {'reason': 'spam'})
         client.post(f'/issue/{issue.pk}/denunciar/', {'reason': 'de novo'})
         assert Report.objects.filter(issue=issue).count() == 1
+
+    @pytest.mark.parametrize('reason', ['', '   ', 'x' * 201])
+    def test_invalid_reason_is_rejected(self, client, issue, other_user, reason):
+        client.force_login(other_user)
+        resp = client.post(f'/issue/{issue.pk}/denunciar/', {'reason': reason})
+        assert resp.status_code == 302
+        assert Report.objects.count() == 0
 
     def test_report_via_get_is_rejected(self, client, issue, other_user):
         client.force_login(other_user)

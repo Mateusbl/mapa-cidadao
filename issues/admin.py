@@ -18,6 +18,10 @@ class IssueAdmin(admin.ModelAdmin):
     readonly_fields = ('title', 'description', 'location', 'municipio', 'created_by',
                        'record_hash', 'previous_hash', 'created_at')
 
+    def get_queryset(self, request):
+        # o manager padrão esconde os ocultados; o admin precisa vê-los pra poder restaurar
+        return Issue.all_objects.select_related('municipio', 'created_by')
+
     def has_delete_permission(self, request, obj=None):
         return False  # delete físico é bloqueado pelo banco, use is_deleted
 
