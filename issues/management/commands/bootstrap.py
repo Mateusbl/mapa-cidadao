@@ -27,7 +27,7 @@ class Command(BaseCommand):
             self.stdout.write(self.style.SUCCESS(f"==> {count} municípios já carregados, pulando."))
 
         self.stdout.write("==> Rodando testes...")
-        result = subprocess.run(["pytest", "issues/tests.py", "-v"])
+        result = subprocess.run(["pytest", "issues/tests", "-v"])
 
         if result.returncode == 0:
             self.stdout.write(self.style.SUCCESS("==> Ambiente pronto e validado."))

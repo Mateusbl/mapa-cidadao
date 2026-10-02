@@ -44,7 +44,7 @@ def issue_detail(request, pk):
 
     user_vote = None
     if request.user.is_authenticated:
-        user_vote = Vote.objects.filter(issue=issue, user=request.user, is_active=True).first()
+        user_vote = Vote.objects.filter(issue=issue, user=request.user).first()
 
     return render(request, 'issues/issue_detail.html', {
         'issue': issue,

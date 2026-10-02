@@ -13,6 +13,21 @@ MALHAS_URL = (
 LOCALIDADES_URL = "https://servicodados.ibge.gov.br/api/v1/localidades/estados/RJ/municipios"
 
 
+def to_multipolygon(geom):
+    # make_valid pode devolver Polygon, MultiPolygon ou GeometryCollection com linhas soltas
+    if geom.geom_type == "Polygon":
+        return MultiPolygon(geom)
+    if geom.geom_type == "MultiPolygon":
+        return geom
+    polygons = []
+    for part in geom:
+        if part.geom_type == "Polygon":
+            polygons.append(part)
+        elif part.geom_type == "MultiPolygon":
+            polygons.extend(part)
+    return MultiPolygon(polygons, srid=geom.srid)
+
+
 class Command(BaseCommand):
     help = "Carrega os municípios do RJ (nome + geometria) a partir das APIs do IBGE"
 
@@ -52,8 +67,12 @@ class Command(BaseCommand):
                 continue
 
             geom = GEOSGeometry(json.dumps(geometry))
-            if geom.geom_type == "Polygon":
-                geom = MultiPolygon(geom)
+            if not geom.valid:
+                # geometria inválida faz o boundary__contains falhar sem erro nenhum
+                self.stdout.write(self.style.WARNING(f"Corrigindo geometria inválida de {name}: {geom.valid_reason}"))
+                geom = to_multipolygon(geom.make_valid())
+            else:
+                geom = to_multipolygon(geom)
 
             obj, created = Municipio.objects.update_or_create(
                 codigo_ibge=codigo_ibge,

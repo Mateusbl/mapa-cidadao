@@ -11,14 +11,18 @@
 <p><strong>{{ vote_count }}</strong> voto(s)</p>
 
 {% if user.is_authenticated %}
-    <form method="post" action="{% url 'issues:vote_toggle' issue.pk %}">
-        {% csrf_token %}
-        {% if user_vote %}
-            <button type="submit">Remover meu voto</button>
-        {% else %}
-            <button type="submit">Votar neste issue</button>
-        {% endif %}
-    </form>
+    {% if user_vote and not user_vote.is_active %}
+        <p>Você revogou seu voto em {{ user_vote.revoked_at }}. Votos são append-only, então a revogação é definitiva.</p>
+    {% else %}
+        <form method="post" action="{% url 'issues:vote_toggle' issue.pk %}">
+            {% csrf_token %}
+            {% if user_vote %}
+                <button type="submit">Remover meu voto</button>
+            {% else %}
+                <button type="submit">Votar neste issue</button>
+            {% endif %}
+        </form>
+    {% endif %}
 {% else %}
     <p><a href="{% url 'login' %}">Entre</a> para votar.</p>
 {% endif %}
